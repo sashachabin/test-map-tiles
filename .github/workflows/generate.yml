@@ -1,11 +1,17 @@
-name: Build Ural PMTiles
+name: Build and Deploy Ural Map
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # Позволяет запускать вручную
+  workflow_dispatch:
+
+# Разрешения для деплоя в GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -17,22 +23,28 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Download Planetiler
+      - name: Build Map with Planetiler
         run: |
+          # Скачиваем исполняемый файл Planetiler
           wget https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
-
-      - name: Build PMTiles
-        run: |
-          # Урал весит ~500МБ в PBF, поэтому выделим 2ГБ оперативной памяти
-          java -Xmx2g -jar planetiler.jar \
-            --osm-path=https://download.geofabrik.de/russia/ural-fed-district-latest.osm.pbf \
+          
+          # Запускаем сборку. 
+          # Мы используем --area=ural-fed-district для автоматического поиска на Geofabrik
+          java -Xmx5g -jar planetiler.jar \
             --download \
+            --area=ural-fed-district \
             --output=ural.pmtiles \
             --force
 
-      - name: Upload PMTiles artifact
-        uses: actions/upload-artifact@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: map-data
-          path: ural.pmtiles
-          retention-days: 7
+          # Загружаем всё содержимое корня (включая index.html и ural.pmtiles)
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,33 +1,56 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ural Vector Map</title>
-    <script src="https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.js"></script>
-    <link href="https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.css" rel="stylesheet" />
-    <script src="https://unpkg.com/pmtiles@3.0.0/dist/pmtiles.js"></script>
+    <title>Карта Уральского ФО</title>
+    
+    <script src="https://unpkg.com/maplibre-gl@4.1.0/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@4.1.0/dist/maplibre-gl.css" rel="stylesheet" />
+    
+    <script src="https://unpkg.com/pmtiles@3.0.5/dist/pmtiles.js"></script>
+
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 4px;
+            font-family: sans-serif;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
     </style>
 </head>
 <body>
+
+    <div class="info-panel">
+        <b>Уральский ФО</b><br>
+        Данные: OpenStreetMap<br>
+        Формат: PMTiles (Planetiler)
+    </div>
     <div id="map"></div>
+
     <script>
-        // Инициализация протокола PMTiles
-        let protocol = new pmtiles.Protocol();
+        // 1. Настройка протокола PMTiles
+        const protocol = new pmtiles.Protocol();
         maplibregl.addProtocol("pmtiles", protocol.tile);
 
-        // Путь к файлу (если вы хостите через GitHub Pages, файл должен быть в корне)
-        const PMTILES_URL = "ural.pmtiles";
+        // 2. Определяем путь к файлу относительно текущего URL
+        const path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+        const PMTILES_URL = `${window.location.origin}${path}ural.pmtiles`;
 
+        // 3. Инициализация карты
         const map = new maplibregl.Map({
             container: 'map',
             style: {
                 version: 8,
                 sources: {
-                    'osm': {
+                    'ural': {
                         type: 'vector',
                         url: `pmtiles://${PMTILES_URL}`,
                         attribution: '© OpenStreetMap contributors'
@@ -37,21 +60,55 @@
                     {
                         "id": "background",
                         "type": "background",
-                        "paint": { "background-color": "#f8f4f0" }
+                        "paint": { "background-color": "#f0f0f0" }
+                    },
+                    {
+                        "id": "water",
+                        "type": "fill",
+                        "source": "ural",
+                        "source-layer": "water",
+                        "paint": { "fill-color": "#9db9e8" }
                     },
                     {
                         "id": "roads",
                         "type": "line",
-                        "source": "osm",
-                        "source-layer": "transportation", // Слой по умолчанию в OpenMapTiles профиле
+                        "source": "ural",
+                        "source-layer": "transportation",
                         "paint": {
-                            "line-color": "#000",
-                            "line-width": 1
+                            "line-color": "#ffffff",
+                            "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.5, 14, 3]
+                        }
+                    },
+                    {
+                        "id": "buildings",
+                        "type": "fill",
+                        "source": "ural",
+                        "source-layer": "building",
+                        "minzoom": 13,
+                        "paint": {
+                            "fill-color": "#d9d0c9",
+                            "fill-outline-color": "#c2b8af"
+                        }
+                    },
+                    {
+                        "id": "labels",
+                        "type": "symbol",
+                        "source": "ural",
+                        "source-layer": "place",
+                        "layout": {
+                            "text-field": ["get", "name:latin"],
+                            "text-size": 14,
+                            "text-font": ["Open Sans Semibold"]
+                        },
+                        "paint": {
+                            "text-color": "#333",
+                            "text-halo-color": "#fff",
+                            "text-halo-width": 1
                         }
                     }
                 ]
             },
-            center: [60.6, 56.8], // Екатеринбург
+            center: [60.61, 56.84], // Екатеринбург
             zoom: 6
         });
 
