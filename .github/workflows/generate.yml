@@ -30,7 +30,7 @@ jobs:
             --download \
             --osm-path=https://download.geofabrik.de/russia/ural-fed-district-latest.osm.pbf \
             --osm-languages=ru,en \
-            --output=ekb.pmtiles \
+            --output=ural-fed-district-latest.pmtiles \
             --force
 
       - name: Setup Pages
