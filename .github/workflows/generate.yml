@@ -2,15 +2,15 @@ name: Generate Ekaterinburg PMTiles
 
 on:
   push:
-    branches: [ "main", "master" ] # Запуск при пуше в основные ветки
-  workflow_dispatch:              # Запуск вручную кнопкой
+    branches: [ "main", "master" ]
+  workflow_dispatch:
   schedule:
-    - cron: '0 0 * * 1'           # Понедельник, 00:00
+    - cron: '0 0 * * 1' # Каждый понедельник
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Используем готовый Docker-контейнер, чтобы не мучиться с зависимостями
+    # Используем официальный образ tilemaker
     container: 
       image: ghcr.io/systemed/tilemaker:master
 
@@ -18,14 +18,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Prepare Configuration
+      - name: Install dependencies and download data
         run: |
-          # Если файлов конфигурации нет в репо, скачиваем дефолтные
+          # Обновляем пакеты и ставим curl + сертификаты (в образе их нет)
+          apt-get update && apt-get install -y curl ca-certificates
+          
+          # Скачиваем конфиги, если их нет в репозитории
           [ -f config-openmaptiles.json ] || curl -L -o config-openmaptiles.json https://raw.githubusercontent.com/systemed/tilemaker/master/resources/config-openmaptiles.json
           [ -f process-openmaptiles.lua ] || curl -L -o process-openmaptiles.lua https://raw.githubusercontent.com/systemed/tilemaker/master/resources/process-openmaptiles.lua
-
-      - name: Download OSM Data
-        run: |
+          
+          # Скачиваем актуальный срез Екатеринбурга (PBF)
           curl -L -o ekb.osm.pbf https://download.bbbike.org/osm/bbbike/Yekaterinburg/Yekaterinburg.osm.pbf
 
       - name: Generate PMTiles
@@ -40,4 +42,16 @@ jobs:
         with:
           name: ekaterinburg-pmtiles
           path: ekb.pmtiles
-          retention-days: 7 # Хранить файл неделю (чтобы не забивать место в GitHub)
+          retention-days: 7
+
+      # Опционально: Создаем релиз и прикрепляем файл
+      # Это позволит скачивать файл по прямой ссылке
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        with:
+          tag_name: latest
+          name: Latest Ekaterinburg Build
+          files: ekb.pmtiles
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
