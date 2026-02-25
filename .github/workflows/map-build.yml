@@ -22,14 +22,19 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Build Tiles with Planetiler
+      - name: Download Planetiler and OSM Data
         run: |
-          wget https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
-          # Запускаем сборку Уральского ФО. 
-          # Planetiler сам скачает PBF по ссылке, если указать --area
+          wget -O planetiler.jar https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
+          # Скачиваем PBF файл напрямую
+          wget -O ural.osm.pbf https://download.geofabrik.de/russia/ural-fed-district-latest.osm.pbf
+
+      - name: Build Tiles
+        run: |
+          # Используем --osm вместо --area для локального файла
+          # Добавляем --download, чтобы скачались вспомогательные данные (границы океанов и т.д.)
           java -Xmx6g -jar planetiler.jar \
             --download \
-            --area=https://download.geofabrik.de/russia/ural-fed-district-latest.osm.pbf \
+            --osm=ural.osm.pbf \
             --output=data.pmtiles \
             --nodemap-type=sparsehash
 
