@@ -1,7 +1,7 @@
 name: Build and Deploy Ekaterinburg Map
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -19,21 +19,18 @@ jobs:
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
+          java-version: "21"
+          distribution: "temurin"
 
       - name: Build Map with Planetiler
         run: |
-          # 1. Скачиваем стабильный релиз Planetiler
           wget https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
-          
-          # 2. Запускаем сборку
-          # --area=sverdlovsk-oblast: скачивает область с Geofabrik
-          # --osm-languages=ru,en: гарантирует наличие русского языка в тайлах
-          # --output=ekb.pmtiles: имя выходного файла для index.html
+
+          # Мы используем прямую ссылку на Свердловскую область
+          # И добавляем флаг --download, чтобы Planetiler сам выкачал этот PBF
           java -Xmx5g -jar planetiler.jar \
             --download \
-            --area=sverdlovsk-oblast \
+            --osm-path=https://download.geofabrik.de/russia/sverdlovsk-oblast-latest.osm.pbf \
             --osm-languages=ru,en \
             --water-polygons-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/water-polygons-split-3857.zip \
             --natural-earth-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/natural_earth_vector.sqlite.zip \
@@ -47,8 +44,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Загружаем всё содержимое корня (index.html + ekb.pmtiles)
-          path: '.'
+          path: "."
 
       - name: Deploy to GitHub Pages
         id: deployment
