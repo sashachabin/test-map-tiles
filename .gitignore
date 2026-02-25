@@ -1,0 +1,9 @@
+node_modules/
+data/
+*.mbtiles
+.env
+.env.js
+.env.example
+.DS_Store
+public/map.pmtiles
+baremaps/baremaps-*/

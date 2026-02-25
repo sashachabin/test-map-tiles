@@ -1,0 +1,46 @@
+{
+  "version": 8,
+  "name": "Sverdlovsk Map",
+  "sources": {
+    "pmtiles": {
+      "type": "vector",
+      "url": "pmtiles://./map.pmtiles",
+      "attribution": "© OpenStreetMap contributors"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": { "background-color": "#f8f4f0" }
+    },
+    {
+      "id": "landuse",
+      "type": "fill",
+      "source": "pmtiles",
+      "source-layer": "landuse",
+      "paint": { "fill-color": "#d8e8c8" }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "pmtiles",
+      "source-layer": "water",
+      "paint": { "fill-color": "#a0c8f0" }
+    },
+    {
+      "id": "roads",
+      "type": "line",
+      "source": "pmtiles",
+      "source-layer": "roads",
+      "paint": { "line-color": "#ffffff", "line-width": 1.5 }
+    },
+    {
+      "id": "buildings",
+      "type": "fill",
+      "source": "pmtiles",
+      "source-layer": "buildings",
+      "paint": { "fill-color": "#d9d0c9", "fill-opacity": 0.7 }
+    }
+  ]
+}

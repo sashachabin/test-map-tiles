@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Карта Свердловской области</title>
+    
+    <!-- MapLibre GL JS -->
+    <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css" rel="stylesheet" />
+    
+    <!-- PMTiles Protocol -->
+    <script src="https://unpkg.com/pmtiles@4.0.0/dist/index.js"></script>
+
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        .loading {
+            position: absolute; top: 10px; left: 10px;
+            background: rgba(255,255,255,0.9); padding: 10px;
+            border-radius: 4px; z-index: 999;
+            font-family: sans-serif; display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="loading" class="loading">Загрузка карты...</div>
+
+    <script>
+        // Инициализация протокола PMTiles
+        const protocol = new pmtiles.Protocol();
+        maplibregl.addProtocol("pmtiles", protocol.tile);
+
+        // Координаты из config.js (Екатеринбург)
+        // bbox: minX: 60.2768, maxX: 60.8812, minY: 56.6769, maxY: 56.9579
+        const CENTER = [60.579, 56.817]; 
+        const ZOOM = 10;
+
+        // Ссылка на PMTiles файл
+        const PMTILES_URL = "./map.pmtiles";
+        // Для внешнего хранилища (>100MB):
+        // const PMTILES_URL = "https://storage.yandexcloud.net/your-bucket/map.pmtiles";
+
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: './style.json',
+            center: CENTER,
+            zoom: ZOOM,
+            attributionControl: false
+        });
+
+        map.addControl(new maplibregl.AttributionControl({ compact: true }));
+        map.addControl(new maplibregl.NavigationControl());
+        map.addControl(new maplibregl.ScaleControl());
+
+        const loading = document.getElementById('loading');
+        map.on('dataloading', () => loading.style.display = 'block');
+        map.on('load', () => loading.style.display = 'none');
+    </script>
+</body>
+</html>
