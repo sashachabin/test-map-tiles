@@ -1,13 +1,16 @@
 name: Generate Ural PMTiles
 
 on:
-  workflow_dispatch: # Запуск вручную через вкладку Actions
-  schedule:
-    - cron: '0 0 1 * *' # Или раз в месяц автоматически
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -21,32 +24,26 @@ jobs:
       - name: Download Planetiler
         run: |
           wget https://github.com/onthegomap/planetiler/releases/download/v0.7.1/planetiler.jar
-          echo "PLANETILER_JAR=planetiler.jar" >> $GITHUB_ENV
 
-      - name: Download OSM Data (Russia extract from Geofabrik)
+      - name: Download OSM Data
         run: |
-          # Скачиваем дамп России (он большой, ~1.2GB), но Planetiler обрежет его по координатам
           wget http://download.geofabrik.de/russia-latest.osm.pbf -O data.osm.pbf
 
       - name: Generate PMTiles
         run: |
-          java -Xmx4g -jar $PLANETILER_JAR \
+          java -Xmx4g -jar planetiler.jar \
             --bounds=50,55,70,65 \
             --output=ural.pmtiles \
             --osm-path=data.osm.pbf \
             --download-threads=4 \
             --mapname="Ural Mountains Map"
-          
-          # bounds=50,55,70,65 -> min_lat, min_lon, max_lat, max_lon (примерные границы Урала)
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: tiles-latest
-          name: Latest Ural Tiles
-          body: "Автоматически сгенерированные тайлы Урала"
-          files: ural.pmtiles
-          prerelease: false
-          make_latest: true
+      - name: Commit and Push PMTiles
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add ural.pmtiles
+          git commit -m "Update Ural PMTiles [skip ci]" || echo "No changes to commit"
+          git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
