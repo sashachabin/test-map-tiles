@@ -3,10 +3,8 @@ name: Build and Deploy Ural Map
 on:
   push:
     branches:
-      - main  # Запуск при каждом пуше в основную ветку
-    paths-ignore:
-      - 'README.md' # Не запускать, если изменили только документацию
-  workflow_dispatch: # Оставляем возможность ручного запуска
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,21 +18,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate PMTiles via Docker
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Generate PMTiles
         run: |
           mkdir -p data
-          # Используем ghcr.io (GitHub Container Registry) - это надежно
-          docker run --rm -v $(pwd)/data:/data ghcr.io/ontheedge/planetiler:latest \
+          # Скачиваем сам конвертер
+          curl -L -o planetiler.jar https://github.com/ontheedge/planetiler/releases/latest/download/planetiler.jar
+          
+          # Запускаем генерацию напрямую. 
+          # GitHub Actions дает 7GB RAM, выделяем 5GB под Java.
+          java -Xmx5g -jar planetiler.jar \
             --download \
             --area=russia/ural-fed-district \
-            --output=/data/ural.pmtiles \
-            --ram=5 \
+            --output=data/ural.pmtiles \
+            --nodata \
             --force
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # Загружаем всё содержимое репозитория
+          path: '.'
 
   deploy:
     needs: build
