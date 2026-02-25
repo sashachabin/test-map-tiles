@@ -1,57 +1,38 @@
-name: Generate Ekaterinburg PMTiles
-
+name: Build Ural PMTiles
 on:
   push:
-    branches: [ "main", "master" ]
-  workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * 1' # Каждый понедельник
+    branches: [ main ]
+  workflow_dispatch: # Позволяет запускать вручную
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Используем официальный образ tilemaker
-    container: 
-      image: ghcr.io/systemed/tilemaker:master
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install dependencies and download data
-        run: |
-          # Обновляем пакеты и ставим curl + сертификаты (в образе их нет)
-          apt-get update && apt-get install -y curl ca-certificates
-          
-          # Скачиваем конфиги, если их нет в репозитории
-          [ -f config-openmaptiles.json ] || curl -L -o config-openmaptiles.json https://raw.githubusercontent.com/systemed/tilemaker/master/resources/config-openmaptiles.json
-          [ -f process-openmaptiles.lua ] || curl -L -o process-openmaptiles.lua https://raw.githubusercontent.com/systemed/tilemaker/master/resources/process-openmaptiles.lua
-          
-          # Скачиваем актуальный срез Екатеринбурга (PBF)
-          curl -L -o ekb.osm.pbf https://download.bbbike.org/osm/bbbike/Yekaterinburg/Yekaterinburg.osm.pbf
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
 
-      - name: Generate PMTiles
+      - name: Download Planetiler
         run: |
-          tilemaker --input ekb.osm.pbf \
-                    --output ekb.pmtiles \
-                    --config config-openmaptiles.json \
-                    --process process-openmaptiles.lua
+          wget https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
 
-      - name: Upload Artifact
+      - name: Build PMTiles
+        run: |
+          # Урал весит ~500МБ в PBF, поэтому выделим 2ГБ оперативной памяти
+          java -Xmx2g -jar planetiler.jar \
+            --osm-path=https://download.geofabrik.de/russia/ural-fed-district-latest.osm.pbf \
+            --download \
+            --output=ural.pmtiles \
+            --force
+
+      - name: Upload PMTiles artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ekaterinburg-pmtiles
-          path: ekb.pmtiles
+          name: map-data
+          path: ural.pmtiles
           retention-days: 7
-
-      # Опционально: Создаем релиз и прикрепляем файл
-      # Это позволит скачивать файл по прямой ссылке
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        with:
-          tag_name: latest
-          name: Latest Ekaterinburg Build
-          files: ekb.pmtiles
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
