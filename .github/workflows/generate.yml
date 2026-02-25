@@ -23,27 +23,32 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Download and Run Planetiler
+      - name: Download Tools
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p data
+          mkdir -p data bin
           
-          # Скачиваем напрямую через cURL, используя заголовок авторизации самого Action
-          # Это обходит лимиты и проблемы с 404
-          curl -H "Authorization: token $GITHUB_TOKEN" -sL \
-            https://github.com/ontheedge/planetiler/releases/latest/download/planetiler.jar -o planetiler.jar
+          # Скачиваем Planetiler (конвертер)
+          gh release download --repo ontheedge/planetiler --pattern "planetiler-dist-*-with-deps.jar" --output planetiler.jar
           
-          # Проверяем, что файл не пустой
-          if [ ! -s planetiler.jar ]; then echo "Jar download failed"; exit 1; fi
+          # Скачиваем PMTiles CLI (утилита от Protomaps для проверки)
+          gh release download --repo protomaps/go-pmtiles --pattern "*_Linux_x86_64.tar.gz" --output pmtiles.tar.gz
+          tar -xzf pmtiles.tar.gz pmtiles
+          mv pmtiles bin/
 
-          # Запуск генерации
+      - name: Generate Map
+        run: |
+          # Генерация Урала (из PBF в PMTiles)
           java -Xmx5g -jar planetiler.jar \
             --download \
             --area=russia/ural-fed-district \
             --output=data/ural.pmtiles \
             --nodata \
             --force
+          
+          # Проверка файла утилитой от Protomaps
+          ./bin/pmtiles verify data/ural.pmtiles
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
