@@ -1,9 +1,12 @@
 name: Build and Deploy Ural Map
 
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 0 1 * *'
+  push:
+    branches:
+      - main  # Запуск при каждом пуше в основную ветку
+    paths-ignore:
+      - 'README.md' # Не запускать, если изменили только документацию
+  workflow_dispatch: # Оставляем возможность ручного запуска
 
 permissions:
   contents: read
@@ -20,7 +23,7 @@ jobs:
       - name: Generate PMTiles via Docker
         run: |
           mkdir -p data
-          # Используем актуальный адрес в GitHub Container Registry
+          # Используем ghcr.io (GitHub Container Registry) - это надежно
           docker run --rm -v $(pwd)/data:/data ghcr.io/ontheedge/planetiler:latest \
             --download \
             --area=russia/ural-fed-district \
@@ -31,7 +34,7 @@ jobs:
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: '.' # Загружаем всё содержимое репозитория
 
   deploy:
     needs: build
@@ -40,5 +43,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - id: deployment
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
