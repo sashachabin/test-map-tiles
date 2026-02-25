@@ -1,9 +1,9 @@
 name: Build and Deploy Ural Map
 
 on:
-  workflow_dispatch: # Кнопка для ручного запуска
+  workflow_dispatch:
   schedule:
-    - cron: '0 0 1 * *' # Раз в месяц
+    - cron: '0 0 1 * *'
 
 permissions:
   contents: read
@@ -20,18 +20,18 @@ jobs:
       - name: Generate PMTiles via Docker
         run: |
           mkdir -p data
-          docker run --rm -v $(pwd)/data:/data ontheedge/planetiler:latest \
+          # Используем актуальный адрес в GitHub Container Registry
+          docker run --rm -v $(pwd)/data:/data ghcr.io/ontheedge/planetiler:latest \
             --download \
             --area=russia/ural-fed-district \
             --output=/data/ural.pmtiles \
-            --nodata \
+            --ram=5 \
             --force
-          # Флаг --nodata удаляет метаданные OSM, уменьшая размер файла
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # Загружаем корень (index.html) и папку data/
+          path: '.'
 
   deploy:
     needs: build
