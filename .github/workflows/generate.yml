@@ -23,23 +23,18 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Download Tools
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download Tools and Generate
         run: |
-          mkdir -p data bin
+          mkdir -p data
           
-          # Скачиваем Planetiler (конвертер)
-          gh release download --repo ontheedge/planetiler --pattern "planetiler-dist-*-with-deps.jar" --output planetiler.jar
+          # 1. Скачиваем Planetiler (используем универсальную ссылку на последний jar)
+          curl -L -o planetiler.jar https://github.com/ontheedge/planetiler/releases/latest/download/planetiler.jar
           
-          # Скачиваем PMTiles CLI (утилита от Protomaps для проверки)
-          gh release download --repo protomaps/go-pmtiles --pattern "*_Linux_x86_64.tar.gz" --output pmtiles.tar.gz
+          # 2. Скачиваем утилиту pmtiles от Protomaps (для проверки файла)
+          curl -L -o pmtiles.tar.gz https://github.com/protomaps/go-pmtiles/releases/latest/download/go-pmtiles_1.23.1_Linux_x86_64.tar.gz
           tar -xzf pmtiles.tar.gz pmtiles
-          mv pmtiles bin/
 
-      - name: Generate Map
-        run: |
-          # Генерация Урала (из PBF в PMTiles)
+          # 3. Генерация PMTiles из OSM PBF (Урал)
           java -Xmx5g -jar planetiler.jar \
             --download \
             --area=russia/ural-fed-district \
@@ -47,8 +42,8 @@ jobs:
             --nodata \
             --force
           
-          # Проверка файла утилитой от Protomaps
-          ./bin/pmtiles verify data/ural.pmtiles
+          # 4. Проверка файла через утилиту Protomaps
+          ./pmtiles verify data/ural.pmtiles
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
