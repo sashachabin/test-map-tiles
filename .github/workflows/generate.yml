@@ -1,59 +1,43 @@
-name: Auto-Build and Deploy Tiles
+name: Generate Ekaterinburg PMTiles
 
 on:
   push:
-    branches: ["main"]
-  workflow_dispatch: 
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
+    branches: [ "main", "master" ] # Запуск при пуше в основные ветки
+  workflow_dispatch:              # Запуск вручную кнопкой
+  schedule:
+    - cron: '0 0 * * 1'           # Понедельник, 00:00
 
 jobs:
-  build-tiles:
+  build:
     runs-on: ubuntu-latest
+    # Используем готовый Docker-контейнер, чтобы не мучиться с зависимостями
+    container: 
+      image: ghcr.io/systemed/tilemaker:master
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Tippecanoe
+      - name: Prepare Configuration
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libsqlite3-dev zlib1g-dev
-          git clone https://github.com/felt/tippecanoe.git
-          cd tippecanoe
-          make -j$(nproc)
-          sudo make install
+          # Если файлов конфигурации нет в репо, скачиваем дефолтные
+          [ -f config-openmaptiles.json ] || curl -L -o config-openmaptiles.json https://raw.githubusercontent.com/systemed/tilemaker/master/resources/config-openmaptiles.json
+          [ -f process-openmaptiles.lua ] || curl -L -o process-openmaptiles.lua https://raw.githubusercontent.com/systemed/tilemaker/master/resources/process-openmaptiles.lua
 
-      - name: Build PMTiles
+      - name: Download OSM Data
         run: |
-          mkdir -p data
-          # Создаем тестовую точку, если папка пуста, чтобы билд не падал
-          if [ ! -f data/ekb.geojson ]; then
-            echo '{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[60.6057,56.8389]},"properties":{"name":"Ekb"}}]}' > data/ekb.geojson
-          fi
+          curl -L -o ekb.osm.pbf https://download.bbbike.org/osm/bbbike/Yekaterinburg/Yekaterinburg.osm.pbf
 
-          # -z14: фиксированный макс. зум (решает ошибку 110)
-          # -l ekb: имя слоя для index.html
-          tippecanoe -z14 -o ekb.pmtiles -l ekb --force --base-zoom=10 data/ekb.geojson
+      - name: Generate PMTiles
+        run: |
+          tilemaker --input ekb.osm.pbf \
+                    --output ekb.pmtiles \
+                    --config config-openmaptiles.json \
+                    --process process-openmaptiles.lua
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
-          path: '.'
-
-  deploy:
-    needs: build-tiles
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          name: ekaterinburg-pmtiles
+          path: ekb.pmtiles
+          retention-days: 7 # Хранить файл неделю (чтобы не забивать место в GitHub)
