@@ -1,218 +1,33 @@
-name: Generate and Deploy PMTiles for Urals
+name: Deploy Map to Pages
 
 on:
   push:
-    branches: [ main ]
-  schedule:
-    - cron: '0 0 * * 0'  # Еженедельное обновление
-  workflow_dispatch:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  build-and-deploy:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          lfs: true # Важно, если pmtiles весит много и вы используете Git LFS
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            gdal-bin \
-            libsqlite3-mod-spatialite \
-            osmium-tool \
-            curl \
-            wget \
-            unzip
-
-      - name: Install tippecanoe
-        run: |
-          git clone https://github.com/felt/tippecanoe.git
-          cd tippecanoe
-          make -j4
-          sudo make install
-
-      - name: Install pmtiles tool
-        run: |
-          wget https://github.com/protomaps/go-pmtiles/releases/download/v1.22.1/pmtiles_1.22.1_Linux_x86_64.tar.gz
-          tar -xzf pmtiles_1.22.1_Linux_x86_64.tar.gz
-          sudo mv pmtiles /usr/local/bin/
-
-      - name: Download Urals region data
-        run: |
-          # Пробуем разные источники данных для Урала
-          echo "Попытка загрузки данных Уральского региона..."
-          
-          # Вариант 1: Уральский федеральный округ
-          if wget --spider https://download.geofabrik.de/russia/ural-fed-district-latest.osm.pbf 2>/dev/null; then
-            wget -O urals.osm.pbf https://download.geofabrik.de/russia/ural-fed-district-latest.osm.pbf
-            echo "Загружен Уральский федеральный округ"
-          
-          # Вариант 2: Свердловская область (ядро Урала)
-          elif wget --spider https://download.geofabrik.de/russia/sverdlovskaya-oblast-latest.osm.pbf 2>/dev/null; then
-            wget -O urals.osm.pbf https://download.geofabrik.de/russia/sverdlovskaya-oblast-latest.osm.pbf
-            echo "Загружена Свердловская область"
-          
-          # Вариант 3: Челябинская область
-          elif wget --spider https://download.geofabrik.de/russia/chelyabinskaya-oblast-latest.osm.pbf 2>/dev/null; then
-            wget -O urals.osm.pbf https://download.geofabrik.de/russia/chelyabinskaya-oblast-latest.osm.pbf
-            echo "Загружена Челябинская область"
-          
-          # Вариант 4: Используем тестовые данные, если ничего не работает
-          else
-            echo "Не удалось загрузить данные. Использую тестовые данные..."
-            # Создаем минимальный GeoJSON для теста
-            cat > test.geojson << 'EOF'
-{
-  "type": "FeatureCollection",
-  "features": [
-    {
-      "type": "Feature",
-      "properties": { "name": "Екатеринбург", "type": "city" },
-      "geometry": { "type": "Point", "coordinates": [60.6125, 56.8519] }
-    },
-    {
-      "type": "Feature",
-      "properties": { "name": "Челябинск", "type": "city" },
-      "geometry": { "type": "Point", "coordinates": [61.4000, 55.1500] }
-    }
-  ]
-}
-EOF
-            # Конвертируем GeoJSON в mbtiles через tippecanoe
-            tippecanoe -zg -o test.mbtiles test.geojson
-            # Конвертируем mbtiles в pmtiles
-            pmtiles convert test.mbtiles urals.pmtiles
-            echo "Созданы тестовые данные"
-          fi
-
-      - name: Check downloaded file
-        run: |
-          if [ -f urals.osm.pbf ]; then
-            echo "Файл urals.osm.pbf загружен, размер: $(du -h urals.osm.pbf | cut -f1)"
-            # Проверяем, что файл не пустой и содержит OSM данные
-            if [ -s urals.osm.pbf ]; then
-              osmium fileinfo urals.osm.pbf || echo "Не удалось прочитать информацию о файле"
-            else
-              echo "Файл пустой, создаем тестовые данные"
-              # Создаем тестовые данные
-              cat > test.geojson << 'EOF'
-{
-  "type": "FeatureCollection",
-  "features": [
-    {
-      "type": "Feature",
-      "properties": { "name": "Екатеринбург", "type": "city" },
-      "geometry": { "type": "Point", "coordinates": [60.6125, 56.8519] }
-    },
-    {
-      "type": "Feature",
-      "properties": { "name": "Пермь", "type": "city" },
-      "geometry": { "type": "Point", "coordinates": [56.2500, 58.0000] }
-    }
-  ]
-}
-EOF
-              tippecanoe -zg -o test.mbtiles test.geojson
-              pmtiles convert test.mbtiles urals.pmtiles
-            fi
-          else
-            echo "Файл не загружен, создаем тестовые данные"
-            # Создаем тестовые данные
-            cat > test.geojson << 'EOF'
-{
-  "type": "FeatureCollection",
-  "features": [
-    {
-      "type": "Feature",
-      "properties": { "name": "Екатеринбург", "type": "city" },
-      "geometry": { "type": "Point", "coordinates": [60.6125, 56.8519] }
-    }
-  ]
-}
-EOF
-            tippecanoe -zg -o test.mbtiles test.geojson
-            pmtiles convert test.mbtiles urals.pmtiles
-          fi
-
-      - name: Generate PMTiles from OSM data (if exists)
-        if: hashFiles('urals.osm.pbf') != '' && hashFiles('urals.pmtiles') == ''
-        run: |
-          echo "Генерация PMTiles из OSM PBF..."
-          # Используем osmium для фильтрации только нужных слоев
-          osmium tags-filter urals.osm.pbf \
-            nwr/place \
-            nwr/waterway \
-            nwr/natural=water \
-            nwr/landuse \
-            -o filtered.osm.pbf -f pbf,add_metadata=false
-          
-          # Конвертируем в mbtiles через tippecanoe
-          tippecanoe -zg \
-            --projection=EPSG:4326 \
-            --drop-densest-as-needed \
-            --extend-zooms-if-still-dropping \
-            -o urals.mbtiles \
-            -l places \
-            -l water \
-            -l waterway \
-            -l landuse \
-            filtered.osm.pbf
-          
-          # Конвертируем в pmtiles
-          pmtiles convert urals.mbtiles urals.pmtiles
-          
-          # Очистка
-          rm -f filtered.osm.pbf urals.mbtiles
-
-      - name: Validate PMTiles
-        run: |
-          if [ -f urals.pmtiles ]; then
-            echo "PMTiles файл создан, размер: $(du -h urals.pmtiles | cut -f1)"
-            pmtiles show urals.pmtiles || echo "Не удалось показать информацию о файле, но файл существует"
-          else
-            echo "ОШИБКА: PMTiles файл не создан!"
-            exit 1
-          fi
-
-      - name: Prepare static files
-        run: |
-          mkdir -p _site
-          cp index.html _site/
-          if [ -f urals.pmtiles ]; then
-            cp urals.pmtiles _site/
-          else
-            echo "Создаем минимальный тестовый файл"
-            # Создаем минимальный валидный PMTiles
-            pmtiles create test.pmtiles
-            cp test.pmtiles _site/urals.pmtiles
-          fi
-          
-          # Создаем конфиг
-          cat > _site/config.json << 'EOF'
-{
-  "tiles": {
-    "urals": "urals.pmtiles"
-  },
-  "bounds": [50, 50, 70, 70],
-  "center": [60, 60],
-  "maxzoom": 14,
-  "minzoom": 0
-}
-EOF
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '_site'
+          path: '.'
 
       - name: Deploy to GitHub Pages
         id: deployment
