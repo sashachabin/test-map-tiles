@@ -1,15 +1,20 @@
-name: Auto-Build Tiles
+name: Auto-Build and Deploy Tiles
+
 on:
   push:
     branches: ["main"]
-    paths:
-      - 'data/**'      # Сработает, если вы изменили файл в папке data
-      - 'index.html'   # Или если поменяли код страницы
+  # Позволяет запустить процесс вручную во вкладке Actions
+  workflow_dispatch: 
 
 permissions:
   contents: read
   pages: write
   id-token: write
+
+# Останавливает старые запуски, если вы пушнули дважды подряд
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
   build-tiles:
@@ -23,20 +28,29 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libsqlite3-dev zlib1g-dev
           git clone https://github.com/felt/tippecanoe.git
-          cd tippecanoe && make -j$(nproc) && sudo make install
+          cd tippecanoe
+          make -j$(nproc)
+          sudo make install
 
-      - name: Build PMTiles from GeoJSON
+      - name: Build PMTiles
         run: |
-          # Предполагаем, что ваш файл лежит в data/ekb.geojson
-          # -zg: автоматический подбор зума
-          # --force: перезаписать если файл уже есть
-          # -l ekb: имя слоя внутри тайлов (важно для index.html)
+          # Создаем папку, если ее нет (на всякий случай)
+          mkdir -p data
+          
+          # Если файла нет, создаем пустой для теста, чтобы билд не упал
+          if [ ! -f data/ekb.geojson ]; then
+            echo '{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[60.6057,56.8389]},"properties":{"name":"Ekb"}}]}' > data/ekb.geojson
+          fi
+
+          # -zg: автоматический зум
+          # -l ekb: имя слоя (важно для index.html)
+          # --force: перезаписать старый файл
           tippecanoe -zg -o ekb.pmtiles -l ekb --force data/ekb.geojson
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # Загружаем всё: и index.html, и новый ekb.pmtiles
+          path: '.' # Загружаем всё содержимое корня (index.html + экспорт pmtiles)
 
   deploy:
     needs: build-tiles
