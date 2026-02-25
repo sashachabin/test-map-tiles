@@ -1,8 +1,9 @@
-name: Deploy Map to Pages
-
+name: Generate Tiles and Deploy
 on:
   push:
     branches: ["main"]
+    paths:
+      - 'data/**' # Запускать только если изменились данные
 
 permissions:
   contents: read
@@ -10,19 +11,27 @@ permissions:
   id-token: write
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          lfs: true # Важно, если pmtiles весит много и вы используете Git LFS
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
+      - name: Install Tippecanoe
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libsqlite3-dev zlib1g-dev
+          git clone https://github.com/felt/tippecanoe.git
+          cd tippecanoe
+          make -j
+          sudo make install
+          cd ..
+
+      - name: Generate PMTiles
+        run: |
+          # Создаем векторные тайлы из GeoJSON
+          # -z14: зум до 14, -pf: игнорировать лимиты размера признаков
+          tippecanoe -o ekb.pmtiles -z14 -pf --force data/ekb.geojson
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
@@ -30,5 +39,4 @@ jobs:
           path: '.'
 
       - name: Deploy to GitHub Pages
-        id: deployment
         uses: actions/deploy-pages@v4
