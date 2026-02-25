@@ -1,4 +1,4 @@
-name: Build and Deploy Ural Map
+name: Build and Deploy Ekaterinburg Map
 on:
   push:
     branches: [ main ]
@@ -24,17 +24,21 @@ jobs:
 
       - name: Build Map with Planetiler
         run: |
+          # 1. Скачиваем стабильный релиз Planetiler
           wget https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
           
-          # Мы явно указываем рабочие ссылки на вспомогательные данные, 
-          # чтобы избежать ошибки с lake_centerline
+          # 2. Запускаем сборку
+          # --area=sverdlovsk-oblast: скачивает область с Geofabrik
+          # --osm-languages=ru,en: гарантирует наличие русского языка в тайлах
+          # --output=ekb.pmtiles: имя выходного файла для index.html
           java -Xmx5g -jar planetiler.jar \
             --download \
-            --area=ural-fed-district \
+            --area=sverdlovsk-oblast \
+            --osm-languages=ru,en \
             --water-polygons-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/water-polygons-split-3857.zip \
             --natural-earth-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/natural_earth_vector.sqlite.zip \
             --lake-centerlines-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/lake_centerline.shp.zip \
-            --output=ural.pmtiles \
+            --output=ekb.pmtiles \
             --force
 
       - name: Setup Pages
@@ -43,6 +47,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          # Загружаем всё содержимое корня (index.html + ekb.pmtiles)
           path: '.'
 
       - name: Deploy to GitHub Pages

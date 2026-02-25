@@ -2,117 +2,94 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Карта Уральского ФО</title>
-    
+    <title>Карта Екатеринбурга</title>
     <script src="https://unpkg.com/maplibre-gl@4.1.0/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@4.1.0/dist/maplibre-gl.css" rel="stylesheet" />
-    
     <script src="https://unpkg.com/pmtiles@3.0.5/dist/pmtiles.js"></script>
-
-    <style>
-        body { margin: 0; padding: 0; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-        .info-panel {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px;
-            border-radius: 4px;
-            font-family: sans-serif;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
-            z-index: 1;
-        }
-    </style>
+    <style>body { margin: 0; } #map { height: 100vh; }</style>
 </head>
 <body>
-
-    <div class="info-panel">
-        <b>Уральский ФО</b><br>
-        Данные: OpenStreetMap<br>
-        Формат: PMTiles (Planetiler)
-    </div>
     <div id="map"></div>
-
     <script>
-        // 1. Настройка протокола PMTiles
         const protocol = new pmtiles.Protocol();
         maplibregl.addProtocol("pmtiles", protocol.tile);
 
-        // 2. Определяем путь к файлу относительно текущего URL
         const path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
         const PMTILES_URL = `${window.location.origin}${path}ural.pmtiles`;
 
-        // 3. Инициализация карты
         const map = new maplibregl.Map({
             container: 'map',
             style: {
                 version: 8,
+                "glyphs": "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
                 sources: {
-                    'ural': {
+                    'city': {
                         type: 'vector',
                         url: `pmtiles://${PMTILES_URL}`,
                         attribution: '© OpenStreetMap contributors'
                     }
                 },
                 layers: [
-                    {
-                        "id": "background",
-                        "type": "background",
-                        "paint": { "background-color": "#f0f0f0" }
-                    },
+                    { "id": "bg", "type": "background", "paint": { "background-color": "#f8f4f0" } },
                     {
                         "id": "water",
                         "type": "fill",
-                        "source": "ural",
+                        "source": "city",
                         "source-layer": "water",
-                        "paint": { "fill-color": "#9db9e8" }
+                        "paint": { "fill-color": "#a0cfdf" }
                     },
                     {
                         "id": "roads",
                         "type": "line",
-                        "source": "ural",
+                        "source": "city",
                         "source-layer": "transportation",
                         "paint": {
                             "line-color": "#ffffff",
-                            "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.5, 14, 3]
+                            "line-width": ["interpolate", ["linear"], ["zoom"], 12, 1, 16, 5]
                         }
                     },
                     {
                         "id": "buildings",
                         "type": "fill",
-                        "source": "ural",
+                        "source": "city",
                         "source-layer": "building",
                         "minzoom": 13,
-                        "paint": {
-                            "fill-color": "#d9d0c9",
-                            "fill-outline-color": "#c2b8af"
-                        }
+                        "paint": { "fill-color": "#dcdcdc", "fill-outline-color": "#bcbcbc" }
                     },
+                    // СЛОЙ С РУССКИМИ НАЗВАНИЯМИ
                     {
                         "id": "labels",
                         "type": "symbol",
-                        "source": "ural",
+                        "source": "city",
                         "source-layer": "place",
                         "layout": {
-                            "text-field": ["get", "name:latin"],
-                            "text-size": 14,
-                            "text-font": ["Open Sans Semibold"]
+                            // Коалесценция: берем RU, если нет - системное имя, если нет - латиницу
+                            "text-field": ["coalesce", ["get", "name:ru"], ["get", "name"], ["get", "name:latin"]],
+                            "text-font": ["Noto Sans Regular"],
+                            "text-size": 12
                         },
-                        "paint": {
-                            "text-color": "#333",
-                            "text-halo-color": "#fff",
-                            "text-halo-width": 1
-                        }
+                        "paint": { "text-color": "#333", "text-halo-color": "#fff", "text-halo-width": 1 }
+                    },
+                    // НАЗВАНИЯ УЛИЦ (появляются на большом зуме)
+                    {
+                        "id": "street-labels",
+                        "type": "symbol",
+                        "source": "city",
+                        "source-layer": "transportation_name",
+                        "minzoom": 14,
+                        "layout": {
+                            "text-field": ["coalesce", ["get", "name:ru"], ["get", "name"]],
+                            "text-font": ["Noto Sans Regular"],
+                            "text-size": 10,
+                            "symbol-placement": "line"
+                        },
+                        "paint": { "text-color": "#666", "text-halo-color": "#fff", "text-halo-width": 1 }
                     }
                 ]
             },
-            center: [60.61, 56.84], // Екатеринбург
-            zoom: 6
+            center: [60.6057, 56.8389], // Центр Екатеринбурга
+            zoom: 13
         });
-
-        map.addControl(new maplibregl.NavigationControl());
     </script>
 </body>
 </html>
