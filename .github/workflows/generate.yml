@@ -24,16 +24,17 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Generate PMTiles
+      - name: Download Planetiler and Generate
         run: |
           mkdir -p data
-          # Скачиваем jar с флагом -L для обработки редиректов GitHub
-          curl -fL -o planetiler.jar https://github.com/ontheedge/planetiler/releases/latest/download/planetiler.jar
           
-          # Проверяем размер скачанного файла (должен быть > 10MB)
+          # Используем официальную утилиту GitHub для скачивания последнего релиза
+          gh release download --repo ontheedge/planetiler --pattern "*.jar" --output planetiler.jar
+          
+          # Проверка скачанного файла
           ls -lh planetiler.jar
-
-          # Запуск генерации
+          
+          # Генерация PMTiles
           java -Xmx5g -jar planetiler.jar \
             --download \
             --area=russia/ural-fed-district \
