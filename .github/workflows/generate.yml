@@ -1,0 +1,85 @@
+name: Generate and Deploy PMTiles for Urals
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    # Еженедельное обновление данных
+    - cron: '0 0 * * 0'
+  workflow_dispatch:  # Ручной запуск
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin libsqlite3-mod-spatialite
+
+      - name: Install tippecanoe
+        run: |
+          git clone https://github.com/felt/tippecanoe.git
+          cd tippecanoe
+          make -j4
+          sudo make install
+
+      - name: Download Urals region data from Geofabrik
+        run: |
+          # Скачиваем данные Уральского региона (Свердловская, Челябинская области и т.д.)
+          # Можно заменить на нужные регионы
+          wget -O urals.osm.pbf https://download.geofabrik.de/russia/ural-fed-district-latest.osm.pbf || \
+          wget -O urals.osm.pbf https://download.geofabrik.de/russia/sverdlovskaya-oblast-latest.osm.pbf
+
+      - name: Generate PMTiles
+        run: |
+          # Конвертируем OSM PBF в PMTiles с помощью tippecanoe
+          tippecanoe -zg \
+            --projection=EPSG:4326 \
+            --drop-densest-as-needed \
+            --extend-zooms-if-still-dropping \
+            -o urals.pmtiles \
+            -l places \
+            -l water \
+            -l waterway \
+            -l landuse \
+            urals.osm.pbf
+
+      - name: Install pmtiles tool
+        run: |
+          wget https://github.com/protomaps/go-pmtiles/releases/download/v1.22.1/pmtiles_1.22.1_Linux_x86_64.tar.gz
+          tar -xzf pmtiles_1.22.1_Linux_x86_64.tar.gz
+          sudo mv pmtiles /usr/local/bin/
+
+      - name: Validate PMTiles
+        run: |
+          pmtiles show urals.pmtiles
+
+      - name: Prepare static files
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp urals.pmtiles _site/
+          
+          # Создаем простой файл конфигурации для PMTiles
+          echo '{ "tiles": { "urals": "urals.pmtiles" } }' > _site/config.json
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

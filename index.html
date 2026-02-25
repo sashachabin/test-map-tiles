@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Карта Урала - PMTiles</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    </style>
+    <!-- Подключаем MapLibre GL JS -->
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <!-- Подключаем PMTiles протокол -->
+    <script src="https://unpkg.com/pmtiles@3.0.5/dist/pmtiles.js"></script>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        // Инициализация протокола PMTiles
+        const protocol = new pmtiles.Protocol();
+        maplibregl.addProtocol('pmtiles', protocol.tile);
+
+        // Границы Уральского региона (приблизительно)
+        const uralsBounds = [
+            [50.0, 50.0],  // SW - запад, юг
+            [70.0, 70.0]   // NE - восток, север
+        ];
+
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: {
+                    'urals': {
+                        type: 'vector',
+                        url: 'pmtiles://./urals.pmtiles',
+                        attribution: '© OpenStreetMap contributors'
+                    }
+                },
+                layers: [
+                    {
+                        id: 'background',
+                        type: 'background',
+                        paint: { 'background-color': '#f2efeb' }
+                    },
+                    {
+                        id: 'water',
+                        type: 'fill',
+                        source: 'urals',
+                        'source-layer': 'water',
+                        paint: { 'fill-color': '#a0c8f0' }
+                    },
+                    {
+                        id: 'waterway',
+                        type: 'line',
+                        source: 'urals',
+                        'source-layer': 'waterway',
+                        paint: { 'line-color': '#a0c8f0' }
+                    },
+                    {
+                        id: 'landuse',
+                        type: 'fill',
+                        source: 'urals',
+                        'source-layer': 'landuse',
+                        paint: { 'fill-color': '#e1e0d6' }
+                    },
+                    {
+                        id: 'places',
+                        type: 'symbol',
+                        source: 'urals',
+                        'source-layer': 'places',
+                        layout: {
+                            'text-field': '{name}',
+                            'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+                            'text-size': 10
+                        },
+                        paint: { 'text-color': '#333' }
+                    }
+                ]
+            },
+            bounds: uralsBounds,
+            maxBounds: uralsBounds
+        });
+
+        map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    </script>
+</body>
+</html>
