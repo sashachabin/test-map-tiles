@@ -25,18 +25,18 @@ jobs:
       - name: Download Planetiler and OSM Data
         run: |
           wget -O planetiler.jar https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
-          # Скачиваем PBF файл напрямую
-          wget -O ural.osm.pbf https://download.geofabrik.de/russia/ural-fed-district-latest.osm.pbf
+          # Используем -L для обработки редиректов Geofabrik
+          curl -L -o ural.osm.pbf https://download.geofabrik.de/russia/ural-fed-district-latest.osm.pbf
 
       - name: Build Tiles
         run: |
-          # Используем --osm вместо --area для локального файла
-          # Добавляем --download, чтобы скачались вспомогательные данные (границы океанов и т.д.)
+          # Убрали проблемный sparsehash, используем автоматический подбор
+          # Добавили --force для перезаписи если файлы остались
           java -Xmx6g -jar planetiler.jar \
             --download \
             --osm=ural.osm.pbf \
             --output=data.pmtiles \
-            --nodemap-type=sparsehash
+            --force
 
       - name: Upload PMTiles to Release
         uses: softprops/action-gh-release@v2
