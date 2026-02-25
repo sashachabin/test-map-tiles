@@ -1,30 +1,45 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="utf-8" />
-    <title>Карта Екатеринбурга</title>
+    <title>Карта Екатеринбурга (GitHub Tiles)</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     
-    <script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
-    <link href="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    
     <script src="https://unpkg.com/pmtiles@2.11.0/dist/index.js"></script>
 
     <style>
         body { margin: 0; padding: 0; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; background-color: #ffffff; }
+        .map-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 4px;
+            font-family: sans-serif;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
 
 <div id="map"></div>
+<div class="map-overlay">
+    <strong>Екатеринбург</strong><br>
+    Статические тайлы с GitHub Pages
+</div>
 
 <script>
-    // Настройка протокола PMTiles
+    // 1. Добавляем поддержку протокола pmtiles:// в MapLibre
     const protocol = new pmtiles.Protocol();
     maplibregl.addProtocol("pmtiles", protocol.add);
 
-    // Укажите путь к вашему файлу в репозитории
-    const TILE_URL = "ekb.pmtiles"; 
+    // 2. Путь к файлу, который создает ваш GitHub Action
+    const PMTILES_URL = "ekb.pmtiles"; 
 
     const map = new maplibregl.Map({
         container: 'map',
@@ -33,40 +48,53 @@
             sources: {
                 "ekb_source": {
                     type: "vector",
-                    url: `pmtiles://${TILE_URL}`,
+                    url: `pmtiles://${PMTILES_URL}`,
                     attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>'
                 }
             },
             layers: [
-                // Базовый фон
+                // Фон (вода/земля)
                 {
                     "id": "background",
                     "type": "background",
-                    "paint": { "background-color": "#f0f0f0" }
+                    "paint": { "background-color": "#f8f4f0" }
                 },
-                // Пример отображения зданий (слои зависят от структуры вашего pmtiles)
+                // Слой зданий (предполагаем, что в GeoJSON были полигоны)
                 {
-                    "id": "buildings",
+                    "id": "ekb-buildings",
                     "source": "ekb_source",
-                    "source-layer": "buildings", 
+                    "source-layer": "ekb", // Tippecanoe по умолчанию называет слой именем файла
                     "type": "fill",
-                    "paint": { "fill-color": "#d6d6d6", "fill-outline-color": "#aaaaaa" }
+                    "paint": {
+                        "fill-color": "#d1d1d1",
+                        "fill-outline-color": "#9e9e9e",
+                        "fill-opacity": 0.8
+                    }
                 },
-                // Дороги
+                // Слой дорог (линии)
                 {
-                    "id": "roads",
+                    "id": "ekb-roads",
                     "source": "ekb_source",
-                    "source-layer": "roads",
+                    "source-layer": "ekb",
                     "type": "line",
-                    "paint": { "line-color": "#ffffff", "line-width": 1.5 }
+                    "paint": {
+                        "line-color": "#ffffff",
+                        "line-width": 1.5
+                    }
                 }
             ]
         },
-        center: [60.6057, 56.8389], // Координаты Екб (Lon, Lat)
+        center: [60.6057, 56.8389], // Центр Екатеринбурга
         zoom: 12
     });
 
+    // Добавляем кнопки навигации
     map.addControl(new maplibregl.NavigationControl());
+
+    // Проверка ошибок
+    map.on('error', (e) => {
+        console.error("Ошибка карты:", e.error);
+    });
 </script>
 
 </body>
