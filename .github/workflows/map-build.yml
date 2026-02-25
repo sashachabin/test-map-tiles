@@ -1,31 +1,55 @@
-name: Build Map Tiles
+name: Build and Deploy Map Tiles
 on:
-  workflow_dispatch: # Ручной запуск
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
 
 jobs:
-  build:
+  process-map:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Download Planetiler
-        run: wget https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
-
-      - name: Generate PMTiles
+      - name: Build Tiles with Planetiler
         run: |
-          java -Xmx14g -jar planetiler.jar \
+          wget https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
+          # Запускаем сборку Уральского ФО. 
+          # Planetiler сам скачает PBF по ссылке, если указать --area
+          java -Xmx6g -jar planetiler.jar \
             --download \
-            --area=russia/ural-fed-district \
-            --output=data.pmtiles
+            --area=https://download.geofabrik.de/russia/ural-fed-district-latest.osm.pbf \
+            --output=data.pmtiles \
+            --nodemap-type=sparsehash
 
-      - name: Upload to Pages
+      - name: Upload PMTiles to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: tiles
+          files: data.pmtiles
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload HTML to Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # Загружаем всё, включая data.pmtiles и index.html
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
