@@ -2,8 +2,7 @@ name: Build and Deploy Ural Map
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -24,17 +23,21 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Download Planetiler and Generate
+      - name: Download and Run Planetiler
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p data
           
-          # Используем официальную утилиту GitHub для скачивания последнего релиза
-          gh release download --repo ontheedge/planetiler --pattern "*.jar" --output planetiler.jar
+          # Скачиваем напрямую через cURL, используя заголовок авторизации самого Action
+          # Это обходит лимиты и проблемы с 404
+          curl -H "Authorization: token $GITHUB_TOKEN" -sL \
+            https://github.com/ontheedge/planetiler/releases/latest/download/planetiler.jar -o planetiler.jar
           
-          # Проверка скачанного файла
-          ls -lh planetiler.jar
-          
-          # Генерация PMTiles
+          # Проверяем, что файл не пустой
+          if [ ! -s planetiler.jar ]; then echo "Jar download failed"; exit 1; fi
+
+          # Запуск генерации
           java -Xmx5g -jar planetiler.jar \
             --download \
             --area=russia/ural-fed-district \
