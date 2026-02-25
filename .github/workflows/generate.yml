@@ -3,7 +3,6 @@ name: Auto-Build and Deploy Tiles
 on:
   push:
     branches: ["main"]
-  # Позволяет запустить процесс вручную во вкладке Actions
   workflow_dispatch: 
 
 permissions:
@@ -11,7 +10,6 @@ permissions:
   pages: write
   id-token: write
 
-# Останавливает старые запуски, если вы пушнули дважды подряд
 concurrency:
   group: "pages"
   cancel-in-progress: true
@@ -34,23 +32,20 @@ jobs:
 
       - name: Build PMTiles
         run: |
-          # Создаем папку, если ее нет (на всякий случай)
           mkdir -p data
-          
-          # Если файла нет, создаем пустой для теста, чтобы билд не упал
+          # Создаем тестовую точку, если папка пуста, чтобы билд не падал
           if [ ! -f data/ekb.geojson ]; then
             echo '{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[60.6057,56.8389]},"properties":{"name":"Ekb"}}]}' > data/ekb.geojson
           fi
 
-          # -zg: автоматический зум
-          # -l ekb: имя слоя (важно для index.html)
-          # --force: перезаписать старый файл
-          tippecanoe -zg -o ekb.pmtiles -l ekb --force data/ekb.geojson
+          # -z14: фиксированный макс. зум (решает ошибку 110)
+          # -l ekb: имя слоя для index.html
+          tippecanoe -z14 -o ekb.pmtiles -l ekb --force --base-zoom=10 data/ekb.geojson
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # Загружаем всё содержимое корня (index.html + экспорт pmtiles)
+          path: '.'
 
   deploy:
     needs: build-tiles
