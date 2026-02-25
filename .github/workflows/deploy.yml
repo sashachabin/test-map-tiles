@@ -1,0 +1,31 @@
+name: Build Map Tiles
+on:
+  workflow_dispatch: # Ручной запуск
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Download Planetiler
+        run: wget https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
+
+      - name: Generate PMTiles
+        run: |
+          java -Xmx14g -jar planetiler.jar \
+            --download \
+            --area=russia/ural-fed-district \
+            --output=data.pmtiles
+
+      - name: Upload to Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.' # Загружаем всё, включая data.pmtiles и index.html
