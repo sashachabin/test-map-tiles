@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Ural Map - GitHub Pages</title>
     <meta charset="utf-8" />
-    <script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
-    <link href="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.css" rel="stylesheet" />
+    <title>PMTiles: Уральский ФО</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
     <script src="https://unpkg.com/pmtiles@2.11.0/dist/index.js"></script>
     <style>
         body { margin: 0; padding: 0; }
@@ -14,40 +15,30 @@
 <body>
     <div id="map"></div>
     <script>
-        // Инициализация протокола PMTiles
-        let protocol = new pmtiles.Protocol();
+        // Добавляем поддержку протокола pmtiles://
+        const protocol = new pmtiles.Protocol();
         maplibregl.addProtocol("pmtiles", protocol.tile);
+
+        const PMTILES_URL = "data/ural.pmtiles";
 
         const map = new maplibregl.Map({
             container: 'map',
-            style: {
-                version: 8,
-                sources: {
-                    'ural-district': {
-                        type: 'vector',
-                        url: 'pmtiles://' + location.origin + location.pathname + 'data.pmtiles',
-                        attribution: '© OpenStreetMap'
-                    }
-                },
-                layers: [
-                    {
-                        'id': 'background',
-                        'type': 'background',
-                        'paint': { 'background-color': '#f8f4f0' }
-                    },
-                    {
-                        'id': 'roads',
-                        'type': 'line',
-                        'source': 'ural-district',
-                        'source-layer': 'transportation',
-                        'paint': { 'line-color': '#000', 'line-width': 1 }
-                    }
-                    // Здесь можно добавить больше слоев (здания, вода и т.д.)
-                ]
-            },
-            center: [60.6, 56.8], // Екатеринбург
+            // Используем стандартный светлый стиль, подменяя источник данных на наш PMTiles
+            style: 'https://maputnik.github.io/osm-liberty/style.json', 
+            center: [60.6122, 56.8389], // Екатеринбург
             zoom: 7
         });
+
+        map.on('load', () => {
+            // Подменяем источник данных в стиле на наш локальный файл
+            map.addSource("openmaptiles", {
+                type: "vector",
+                url: "pmtiles://" + PMTILES_URL,
+                attribution: '© OpenStreetMap'
+            });
+        });
+
+        map.addControl(new maplibregl.NavigationControl());
     </script>
 </body>
 </html>

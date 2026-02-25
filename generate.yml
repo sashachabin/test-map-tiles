@@ -1,0 +1,40 @@
+name: Generate and Deploy Map
+
+on:
+  workflow_dispatch: # Позволяет запускать вручную
+  schedule:
+    - cron: '0 0 * * 0' # Запуск каждое воскресенье в полночь
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: test-インスト/action-setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Create data directory
+        run: mkdir -p data
+
+      - name: Download Planetiler and Generate PMTiles
+        run: |
+          curl -L -o planetiler.jar https://github.com/ontheedge/planetiler/releases/latest/download/planetiler.jar
+          java -Xmx5g -jar planetiler.jar \
+            --download \
+            --area=russia/ural-fed-district \
+            --output=data/ural.pmtiles
+        # Примечание: У GitHub Actions 7ГБ RAM, поэтому ставим -Xmx5g
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: . # Деплоим корень (где index.html) и папку data
+          branch: gh-pages
