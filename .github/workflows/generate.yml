@@ -19,22 +19,17 @@ jobs:
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: "21"
+          java-version: 21
           distribution: "temurin"
 
       - name: Build Map with Planetiler
         run: |
           wget https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
 
-          # Мы используем прямую ссылку на Свердловскую область
-          # И добавляем флаг --download, чтобы Planetiler сам выкачал этот PBF
           java -Xmx5g -jar planetiler.jar \
             --download \
             --osm-path=https://download.geofabrik.de/russia/sverdlovsk-oblast-latest.osm.pbf \
             --osm-languages=ru,en \
-            --water-polygons-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/water-polygons-split-3857.zip \
-            --natural-earth-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/natural_earth_vector.sqlite.zip \
-            --lake-centerlines-url=https://github.com/onthegomap/planetiler/raw/main/planetiler-core/src/test/resources/lake_centerline.shp.zip \
             --output=ekb.pmtiles \
             --force
 
