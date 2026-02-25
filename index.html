@@ -15,7 +15,7 @@
         maplibregl.addProtocol("pmtiles", protocol.tile);
 
         const path = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
-        const PMTILES_URL = `https://sashachabin.github.io/test-map-tiles/ural-fed-district-latest.pmtiles`;
+        const PMTILES_URL = `${window.location.origin}${path}ural-fed-district-latest.pmtiles`;
 
         const map = new maplibregl.Map({
             container: 'map',
