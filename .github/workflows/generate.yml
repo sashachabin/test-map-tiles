@@ -27,11 +27,13 @@ jobs:
       - name: Generate PMTiles
         run: |
           mkdir -p data
-          # Скачиваем сам конвертер
-          curl -L -o planetiler.jar https://github.com/ontheedge/planetiler/releases/latest/download/planetiler.jar
+          # Скачиваем jar с флагом -L для обработки редиректов GitHub
+          curl -fL -o planetiler.jar https://github.com/ontheedge/planetiler/releases/latest/download/planetiler.jar
           
-          # Запускаем генерацию напрямую. 
-          # GitHub Actions дает 7GB RAM, выделяем 5GB под Java.
+          # Проверяем размер скачанного файла (должен быть > 10MB)
+          ls -lh planetiler.jar
+
+          # Запуск генерации
           java -Xmx5g -jar planetiler.jar \
             --download \
             --area=russia/ural-fed-district \
