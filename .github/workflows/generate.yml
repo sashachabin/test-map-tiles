@@ -1,9 +1,10 @@
-name: Generate Tiles and Deploy
+name: Auto-Build Tiles
 on:
   push:
     branches: ["main"]
     paths:
-      - 'data/**' # Запускать только если изменились данные
+      - 'data/**'      # Сработает, если вы изменили файл в папке data
+      - 'index.html'   # Или если поменяли код страницы
 
 permissions:
   contents: read
@@ -11,10 +12,10 @@ permissions:
   id-token: write
 
 jobs:
-  build-and-deploy:
+  build-tiles:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install Tippecanoe
@@ -22,21 +23,28 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libsqlite3-dev zlib1g-dev
           git clone https://github.com/felt/tippecanoe.git
-          cd tippecanoe
-          make -j
-          sudo make install
-          cd ..
+          cd tippecanoe && make -j$(nproc) && sudo make install
 
-      - name: Generate PMTiles
+      - name: Build PMTiles from GeoJSON
         run: |
-          # Создаем векторные тайлы из GeoJSON
-          # -z14: зум до 14, -pf: игнорировать лимиты размера признаков
-          tippecanoe -o ekb.pmtiles -z14 -pf --force data/ekb.geojson
+          # Предполагаем, что ваш файл лежит в data/ekb.geojson
+          # -zg: автоматический подбор зума
+          # --force: перезаписать если файл уже есть
+          # -l ekb: имя слоя внутри тайлов (важно для index.html)
+          tippecanoe -zg -o ekb.pmtiles -l ekb --force data/ekb.geojson
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: '.' # Загружаем всё: и index.html, и новый ekb.pmtiles
 
+  deploy:
+    needs: build-tiles
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
