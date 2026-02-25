@@ -28,8 +28,7 @@ jobs:
 
           java -Xmx5g -jar planetiler.jar \
             --download \
-            --osm-path=https://download.geofabrik.de/russia/ural-fed-district-latest.osm.pbf \
-            --osm-languages=ru,en \
+            --area=ural-fed-district \
             --output=ural-fed-district-latest.pmtiles \
             --force
 
