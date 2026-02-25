@@ -1,40 +1,44 @@
-name: Generate and Deploy Map
+name: Build and Deploy Ural Map
 
 on:
-  workflow_dispatch: # Позволяет запускать вручную
+  workflow_dispatch: # Кнопка для ручного запуска
   schedule:
-    - cron: '0 0 * * 0' # Запуск каждое воскресенье в полночь
+    - cron: '0 0 1 * *' # Раз в месяц
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: test-インスト/action-setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Create data directory
-        run: mkdir -p data
-
-      - name: Download Planetiler and Generate PMTiles
+      - name: Generate PMTiles via Docker
         run: |
-          curl -L -o planetiler.jar https://github.com/ontheedge/planetiler/releases/latest/download/planetiler.jar
-          java -Xmx5g -jar planetiler.jar \
+          mkdir -p data
+          docker run --rm -v $(pwd)/data:/data ontheedge/planetiler:latest \
             --download \
             --area=russia/ural-fed-district \
-            --output=data/ural.pmtiles
-        # Примечание: У GitHub Actions 7ГБ RAM, поэтому ставим -Xmx5g
+            --output=/data/ural.pmtiles \
+            --nodata \
+            --force
+          # Флаг --nodata удаляет метаданные OSM, уменьшая размер файла
 
-      - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          folder: . # Деплоим корень (где index.html) и папку data
-          branch: gh-pages
+          path: '.' # Загружаем корень (index.html) и папку data/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

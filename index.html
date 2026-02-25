@@ -2,11 +2,11 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>PMTiles: Уральский ФО</title>
-    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
-    <script src="https://unpkg.com/pmtiles@2.11.0/dist/index.js"></script>
+    <title>Урал: OSM PMTiles</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/pmtiles@3.0.0/dist/index.js"></script>
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
@@ -15,30 +15,34 @@
 <body>
     <div id="map"></div>
     <script>
-        // Добавляем поддержку протокола pmtiles://
         const protocol = new pmtiles.Protocol();
         maplibregl.addProtocol("pmtiles", protocol.tile);
 
-        const PMTILES_URL = "data/ural.pmtiles";
+        // Динамическое определение пути для GitHub Pages
+        const path = window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname + '/';
+        const PMTILES_URL = `${window.location.origin}${path}data/ural.pmtiles`;
 
         const map = new maplibregl.Map({
             container: 'map',
-            // Используем стандартный светлый стиль, подменяя источник данных на наш PMTiles
-            style: 'https://maputnik.github.io/osm-liberty/style.json', 
-            center: [60.6122, 56.8389], // Екатеринбург
-            zoom: 7
+            style: {
+                version: 8,
+                sources: {
+                    "ural": {
+                        type: "vector",
+                        url: `pmtiles://${PMTILES_URL}`,
+                        attribution: "© OpenStreetMap"
+                    }
+                },
+                layers: [
+                    { "id": "bg", "type": "background", "paint": { "background-color": "#f0ede5" } },
+                    { "id": "water", "type": "fill", "source": "ural", "source-layer": "water", "paint": { "fill-color": "#a1d1f0" } },
+                    { "id": "roads", "type": "line", "source": "ural", "source-layer": "transportation", "paint": { "line-color": "#ffffff", "line-width": 1 } },
+                    { "id": "places", "type": "symbol", "source": "ural", "source-layer": "place", "layout": { "text-field": "{name:latin}", "text-size": 12 } }
+                ]
+            },
+            center: [60.6, 56.8], // Екатеринбург
+            zoom: 6
         });
-
-        map.on('load', () => {
-            // Подменяем источник данных в стиле на наш локальный файл
-            map.addSource("openmaptiles", {
-                type: "vector",
-                url: "pmtiles://" + PMTILES_URL,
-                attribution: '© OpenStreetMap'
-            });
-        });
-
-        map.addControl(new maplibregl.NavigationControl());
     </script>
 </body>
 </html>
